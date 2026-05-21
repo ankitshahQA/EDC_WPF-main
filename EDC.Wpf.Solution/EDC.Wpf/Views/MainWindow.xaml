@@ -34,48 +34,6 @@
                 <fluent:Backstage Header="Project">
                     <fluent:BackstageTabControl>
 
-                        <fluent:BackstageTabItem Header="New">
-                            <StackPanel Margin="40,30" MaxWidth="640">
-                                <TextBlock Text="New configuration" FontSize="22" FontWeight="Light"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Margin="0,8,0,20" TextWrapping="Wrap" FontSize="13"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           Text="Discards the current portal credentials, server slots and test selections so you can configure a fresh deployment check from scratch. The on-disk file Input\config.properties is rewritten when you save."/>
-                                <Button Style="{DynamicResource ProButton}" Content="Reset to defaults"
-                                        HorizontalAlignment="Left" Padding="18,8"
-                                        ToolTip="Clear portal credentials, servers and test selections."
-                                        Command="{Binding NewConfigCommand}"/>
-                            </StackPanel>
-                        </fluent:BackstageTabItem>
-
-                        <fluent:BackstageTabItem Header="Open">
-                            <StackPanel Margin="40,30" MaxWidth="640">
-                                <TextBlock Text="Reload configuration" FontSize="22" FontWeight="Light"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Margin="0,8,0,20" TextWrapping="Wrap" FontSize="13"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           Text="Re-reads Input\config.properties from disk, discarding any unsaved edits in the panes."/>
-                                <Button Style="{DynamicResource ProButton}" Content="Reload from disk"
-                                        HorizontalAlignment="Left" Padding="18,8"
-                                        ToolTip="Re-read Input\config.properties, discarding unsaved edits."
-                                        Command="{Binding ReloadConfigCommand}"/>
-                            </StackPanel>
-                        </fluent:BackstageTabItem>
-
-                        <fluent:BackstageTabItem Header="Save">
-                            <StackPanel Margin="40,30" MaxWidth="640">
-                                <TextBlock Text="Save configuration" FontSize="22" FontWeight="Light"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Margin="0,8,0,20" TextWrapping="Wrap" FontSize="13"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           Text="Writes the current portal, servers and test selections to Input\config.properties next to the executable."/>
-                                <Button Style="{DynamicResource ProButton}" Content="Save now"
-                                        HorizontalAlignment="Left" Padding="18,8"
-                                        ToolTip="Write the current values to Input\config.properties."
-                                        Command="{Binding SaveConfigCommand}"/>
-                            </StackPanel>
-                        </fluent:BackstageTabItem>
-
                         <fluent:BackstageTabItem Header="Reports">
                             <Grid Margin="40,30">
                                 <Grid.RowDefinitions>
@@ -219,24 +177,21 @@
                             <StackPanel Margin="40,30" MaxWidth="720">
                                 <TextBlock Text="About Enterprise Deployment Check" FontSize="22" FontWeight="Light"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Margin="0,12,0,0" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
-                                           TextWrapping="Wrap"
-                                           Text="WPF front-end (version 1.0.0) for the Selenium/TestNG validation engine. Supports ArcGIS Enterprise on Windows and Kubernetes."/>
-                                <Border Margin="0,18,0,0" Padding="14"
-                                        Background="{DynamicResource CardBackgroundBrush}"
-                                        BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
-                                    <StackPanel>
-                                        <TextBlock Foreground="{DynamicResource TextSecondaryBrush}">
-                                            <Run Text="Java runtime:" FontWeight="SemiBold"/>
-                                            <LineBreak/>
-                                            <Run Text="{Binding JavaPath, Mode=OneWay}"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
-                                <Button Style="{DynamicResource ProButton}" Content="Open Help Document"
-                                        HorizontalAlignment="Left" Padding="18,8" Margin="0,16,0,0"
-                                        ToolTip="Open the Enterprise Deployment Check PDF help document."
-                                        Command="{Binding OpenHelpDocCommand}"/>
+                                <TextBlock Margin="0,16,0,0" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Text="Enterprise Deployment Check"/>
+                                <TextBlock Margin="0,4,0,0" FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="Version: 2.0"/>
+                                <TextBlock Margin="0,4,0,0" FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="Run confidence tests against ARCGIS Enterprise"/>
+                                <TextBlock Margin="0,4,0,0" FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="Contact Information: mnelson@esri.com"/>
+                                <TextBlock Margin="0,4,0,0" FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="Copyright &#169;2026 Esri Inc. All rights reserved."/>
                             </StackPanel>
                         </fluent:BackstageTabItem>
 
@@ -250,7 +205,7 @@
             <!-- ═══════════ Run tab — the primary workflow ═══════════ -->
             <fluent:RibbonTabItem Header="Run">
 
-                <fluent:RibbonGroupBox Header="Configuration">
+                <fluent:RibbonGroupBox Header="Configuration" CanAddToQuickAccessToolBar="False">
                     <fluent:Button Header="Save" Size="Middle" Command="{Binding SaveConfigCommand}"
                                    Icon="{StaticResource Calcite.Save}"
                                    ToolTip="Write current values to Input\config.properties."/>
@@ -262,7 +217,7 @@
                                    ToolTip="Reset all fields to defaults."/>
                 </fluent:RibbonGroupBox>
 
-                <fluent:RibbonGroupBox Header="Execution">
+                <fluent:RibbonGroupBox Header="Execution" CanAddToQuickAccessToolBar="False">
                     <fluent:Button Header="Run Tests" Size="Large"
                                    LargeIcon="{StaticResource Calcite.Play.Large}"
                                    Icon="{StaticResource Calcite.Play}"
@@ -277,7 +232,7 @@
                                    ToolTip="Terminate the engine and any browsers it has launched."/>
                 </fluent:RibbonGroupBox>
 
-                <fluent:RibbonGroupBox Header="Output">
+                <fluent:RibbonGroupBox Header="Output" CanAddToQuickAccessToolBar="False">
                     <fluent:Button Header="Open Report" Size="Large" Command="{Binding OpenReportCommand}"
                                    LargeIcon="{StaticResource Calcite.FileReport.Large}"
                                    Icon="{StaticResource Calcite.FileReport}"
@@ -293,17 +248,23 @@
 
             <!-- ═══════════ Tests tab — selection summary ═══════════ -->
             <fluent:RibbonTabItem Header="Tests">
-                <fluent:RibbonGroupBox Header="Selection">
+                <fluent:RibbonGroupBox Header="Selection" CanAddToQuickAccessToolBar="False">
                     <fluent:CheckBox Header="Run all tests"
                                      ToolTip="Tick to enable every test below; untick to clear all selections."
                                      IsChecked="{Binding Config.RunAllTest}"/>
                 </fluent:RibbonGroupBox>
-                <fluent:RibbonGroupBox Header="Deployment">
+                <fluent:RibbonGroupBox Header="Deployment" CanAddToQuickAccessToolBar="False">
                     <fluent:CheckBox Header="Kubernetes (disables data-store / server-role tests)"
                                      ToolTip="Tick when validating ArcGIS Enterprise on Kubernetes."
                                      IsChecked="{Binding Config.Kubernetes}"/>
                 </fluent:RibbonGroupBox>
-                <fluent:RibbonGroupBox Header="Summary">
+                <fluent:RibbonGroupBox Icon="{StaticResource Calcite.Check}">
+                    <fluent:RibbonGroupBox.Header>
+                        <MultiBinding StringFormat="{}{0}/{1} selected">
+                            <Binding Path="TestSelection.SelectedTestCount" Mode="OneWay"/>
+                            <Binding Path="TestSelection.TotalTestCount" Mode="OneWay"/>
+                        </MultiBinding>
+                    </fluent:RibbonGroupBox.Header>
                     <StackPanel Margin="8,4" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="16" FontWeight="SemiBold">
                             <Run Text="{Binding TestSelection.SelectedTestCount, Mode=OneWay}"/>
@@ -318,7 +279,7 @@
 
             <!-- ═══════════ View tab ═══════════ -->
             <fluent:RibbonTabItem Header="View">
-                <fluent:RibbonGroupBox Header="Theme">
+                <fluent:RibbonGroupBox Header="Theme" CanAddToQuickAccessToolBar="False">
                     <fluent:Button Header="Toggle Theme" Size="Middle" Command="{Binding ToggleThemeCommand}"
                                    Icon="{StaticResource Calcite.Moon}"
                                    ToolTip="Switch between Dark and Light surface palettes."/>
@@ -327,7 +288,7 @@
 
             <!-- ═══════════ Help tab ═══════════ -->
             <fluent:RibbonTabItem Header="Help">
-                <fluent:RibbonGroupBox Header="Info">
+                <fluent:RibbonGroupBox Header="Info" CanAddToQuickAccessToolBar="False">
                     <fluent:Button Header="About" Size="Large" Click="AboutButton_OnClick"
                                    MinWidth="96"
                                    LargeIcon="{StaticResource Calcite.Information.Large}"

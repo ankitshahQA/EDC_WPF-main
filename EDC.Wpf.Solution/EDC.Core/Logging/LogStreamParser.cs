@@ -18,6 +18,12 @@ public sealed partial class LogStreamParser
     [GeneratedRegex(@"\[EDCTestListener\]\s+Updating result for test:\s+(?<name>.+?)\s+(?:→|->)\s+(?<status>PASSED|FAILED|SKIPPED)", RegexOptions.IgnoreCase)]
     private static partial Regex ListenerRegex();
 
+    // Java exception / stack-trace detection — matches lines that *look* like
+    // exception output anywhere in the line (so a "FAIL: java.lang.X..." line
+    // produced by setTextRed(exp.getLocalizedMessage()) is also caught).
+    [GeneratedRegex(@"(?:^|\s)(?:Exception in thread\b|Caused by:\s|Suppressed:\s|\bat\s+[\w$.<>]+\([^)]*\)|\.{3}\s*\d+\s+more\b|(?:[a-z][\w$]*\.){2,}[A-Z][\w$]*(?:Exception|Error|Throwable)\b|\b(?:Build info|Session info|Driver info|System info):\s)")]
+    private static partial Regex JavaExceptionRegex();
+
     // Lines we never want in the user-facing Results Log (mirrors the Swing app's filter).
     private static readonly string[] NoisePrefixes =
     {
@@ -50,6 +56,7 @@ public sealed partial class LogStreamParser
             if (t.StartsWith(NoisePrefixes[i], StringComparison.OrdinalIgnoreCase)) return true;
         for (int i = 0; i < NoiseContains.Length; i++)
             if (t.Contains(NoiseContains[i], StringComparison.OrdinalIgnoreCase)) return true;
+        if (JavaExceptionRegex().IsMatch(raw)) return true;
         return false;
     }
 

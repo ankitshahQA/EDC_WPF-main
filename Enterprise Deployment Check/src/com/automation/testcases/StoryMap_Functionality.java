@@ -34,6 +34,7 @@ public class StoryMap_Functionality extends TestBase {
 			cfunction.refreshpage();
 			cfunction.sync(5);
 			mp.VerfiyItemCreatedInFolder(StoryMapName);
+			cfunction.closeAllOtherTabs();
 		} else
 			CommonFunction.logStatus("FAIL", "Cannot procee with StoryMap creation as StoryMap page is not displayed");
 

@@ -1504,7 +1504,8 @@ public class CommonFunction extends TestBase {
 
 				try {
 					setTextRed(msg1 + " - Failed");
-					setTextRed(exp.getLocalizedMessage());
+					// Exception detail is intentionally NOT echoed to the UI log.
+					// It still goes into the on-disk archival log + Extent report.
 				} catch (Exception e) {
 					e.printStackTrace();
 				}

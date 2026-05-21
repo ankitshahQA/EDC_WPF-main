@@ -50,6 +50,7 @@
     <Viewbox x:Key="Calcite.Reset"       x:Shared="False" Width="16" Height="16" Stretch="Uniform"><Path Data="{StaticResource Calcite.Geom.Reset}"       Fill="{DynamicResource TextPrimaryBrush}"/></Viewbox>
     <Viewbox x:Key="Calcite.Grid"        x:Shared="False" Width="16" Height="16" Stretch="Uniform"><Path Data="{StaticResource Calcite.Geom.Grid}"        Fill="{DynamicResource TextPrimaryBrush}"/></Viewbox>
     <Viewbox x:Key="Calcite.Dashboard"   x:Shared="False" Width="16" Height="16" Stretch="Uniform"><Path Data="{StaticResource Calcite.Geom.Dashboard}"   Fill="{DynamicResource TextPrimaryBrush}"/></Viewbox>
+    <Viewbox x:Key="Calcite.Check"       x:Shared="False" Width="16" Height="16" Stretch="Uniform"><Path Data="{StaticResource Calcite.Geom.Check}"       Fill="{DynamicResource TextPrimaryBrush}"/></Viewbox>
 
     <!--
         Large (22px) variants - bind to fluent:Button.LargeIcon.

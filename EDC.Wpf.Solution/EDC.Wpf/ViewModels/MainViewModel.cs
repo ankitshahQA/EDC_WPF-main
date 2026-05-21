@@ -164,6 +164,10 @@ public partial class MainViewModel : ObservableObject
         // stderr (DevTools session noise, CDP version mismatches, deprecation
         // notices, etc.) — those are kept in the ring buffer for diagnostics
         // but must NOT bubble into the user-facing Results Log as errors.
+        // Java exception / stack-trace lines are also suppressed here — they
+        // remain in the buffer for a crash dump on failure but are hidden from
+        // the live log so the user does not see raw e.printStackTrace() output.
+        if (JavaExceptionDetail.IsMatch(line)) return;
         if (LooksLikeEngineError(line) && !IsBenignWarning(line))
         {
             ResultsLog.Append(LogEntry.Error(line));
@@ -176,6 +180,13 @@ public partial class MainViewModel : ObservableObject
         line.StartsWith("Caused by", StringComparison.Ordinal) ||
         line.Contains(" FATAL ", StringComparison.Ordinal) ||
         line.StartsWith("Error:", StringComparison.OrdinalIgnoreCase);
+
+    // Java exception / stack-trace text that should NEVER reach the user-facing
+    // Results Log, regardless of which stream produced it. The lines are still
+    // kept in the diagnostic stderr ring buffer for crash reports.
+    private static readonly System.Text.RegularExpressions.Regex JavaExceptionDetail =
+        new(@"(?:^|\s)(?:Exception in thread\b|Caused by:\s|Suppressed:\s|\bat\s+[\w$.<>]+\([^)]*\)|\.{3}\s*\d+\s+more\b|(?:[a-z][\w$]*\.){2,}[A-Z][\w$]*(?:Exception|Error|Throwable)\b|\b(?:Build info|Session info|Driver info|System info):\s)",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
     /// Returns true for stderr lines that look like routine Selenium / WebDriver /
@@ -230,28 +241,29 @@ public partial class MainViewModel : ObservableObject
         string? best = null;
         foreach (var l in _stderrBuffer)
         {
+            if (JavaExceptionDetail.IsMatch(l)) continue;
             if (LooksLikeEngineError(l) && !IsBenignWarning(l)) { best = l; break; }
         }
         if (best is null)
         {
             // Fallback: walk the buffer from newest to oldest and pick the most
-            // recent line that ISN'T benign noise. If everything is benign,
-            // skip the toast entirely — there's nothing actionable to show.
+            // recent line that ISN'T benign noise OR exception text. If
+            // everything is benign / exception detail, skip the toast entirely.
             var arr = _stderrBuffer.ToArray();
             for (int i = arr.Length - 1; i >= 0; i--)
             {
-                if (!IsBenignWarning(arr[i]) && !string.IsNullOrWhiteSpace(arr[i]))
-                {
-                    best = arr[i];
-                    break;
-                }
+                if (string.IsNullOrWhiteSpace(arr[i])) continue;
+                if (IsBenignWarning(arr[i])) continue;
+                if (JavaExceptionDetail.IsMatch(arr[i])) continue;
+                best = arr[i];
+                break;
             }
         }
 
         if (best is null)
         {
-            // All buffered stderr was benign — don't bother the user with a
-            // popup that just repeats Selenium CDP warning text.
+            // All buffered stderr was benign or exception detail — don't bother
+            // the user with a popup that just repeats stack trace text.
             _stderrBuffer.Clear();
             return;
         }
@@ -505,10 +517,12 @@ public partial class MainViewModel : ObservableObject
     private void SaveConfig()
     {
         _store.Save(Config);
+        // The on-disk file now has a real PortalUrl, so Reload becomes meaningful.
+        ReloadConfigCommand.NotifyCanExecuteChanged();
         Toasts.Show("Configuration saved", "Input\\config.properties has been updated.", ToastSeverity.Success);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanReloadConfig))]
     private void ReloadConfig()
     {
         var fresh = _store.Load();
@@ -516,6 +530,24 @@ public partial class MainViewModel : ObservableObject
         SyncVisibleServersFromConfig();
         OnPropertyChanged(nameof(CanAddServer));
         Toasts.Show("Configuration reloaded", "Re-read from Input\\config.properties.", ToastSeverity.Info);
+    }
+
+    // Reload reads from disk. There is nothing useful to reload until the user
+    // has saved a real configuration (PortalUrl populated). On a fresh install
+    // / freshly-published build the disk file is the blank shippable template,
+    // so the button stays disabled to avoid wiping unsaved edits with blanks.
+    private bool CanReloadConfig
+    {
+        get
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_store.ConfigPath)) return false;
+                var disk = _store.Load();
+                return !string.IsNullOrWhiteSpace(disk.PortalUrl);
+            }
+            catch { return false; }
+        }
     }
 
     [RelayCommand]

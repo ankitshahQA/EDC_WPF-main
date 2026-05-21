@@ -24,6 +24,15 @@ public class TestSuite extends TestBase {
 	int cnt = 0;
 	String msg = "";
 
+	/**
+	 * Set to {@code true} once the test-data cleanup ({@code DeleteAllFolder})
+	 * has run, regardless of which path invoked it (TestNG {@code @AfterSuite}
+	 * or the JVM shutdown hook). Prevents the cleanup from running twice on a
+	 * normal headless exit, where {@code @AfterSuite} fires first and the
+	 * shutdown hook fires immediately afterward as the JVM tears down.
+	 */
+	private static volatile boolean cleanupDone = false;
+
 	@BeforeTest
 	@Parameters({ "platform" })
 	public void SetUpAutomation(String platform) throws Exception {
@@ -1056,6 +1065,11 @@ public class TestSuite extends TestBase {
 	 */
 	public static void runShutdownCleanup() {
 		try {
+			if (cleanupDone) {
+				System.out.println(
+						"Shutdown cleanup skipped — @AfterSuite already deleted test data.");
+				return;
+			}
 			if (!logindone) {
 				System.out.println(
 						"Shutdown cleanup skipped — Portal login was not completed (logindone=false).");
@@ -1072,6 +1086,7 @@ public class TestSuite extends TestBase {
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
+			cleanupDone = true;
 		} catch (Throwable t) {
 			t.printStackTrace();
 		}
@@ -1125,6 +1140,7 @@ public class TestSuite extends TestBase {
 
 							try {
 								PythonHelp.DeleteAllFolder();
+								cleanupDone = true;
 							} catch (Throwable e) {
 								e.printStackTrace();
 							}

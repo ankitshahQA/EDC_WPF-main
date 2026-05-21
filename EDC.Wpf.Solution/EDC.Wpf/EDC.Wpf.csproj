@@ -55,13 +55,24 @@
 
   <Target Name="EdcCopyPayload" AfterTargets="Publish">
     <ItemGroup>
-      <_EdcInput Include="$(_EdcEngineSrc)\Input\**\*.*" />
+      <!-- Exclude both config.properties (developer's working file with real
+           credentials / federated flags) and config.properties.shippable (the
+           pristine template). The shippable build always ships a fresh blank
+           config — see the dedicated Copy below. -->
+      <_EdcInput Include="$(_EdcEngineSrc)\Input\**\*.*"
+                 Exclude="$(_EdcEngineSrc)\Input\config.properties;$(_EdcEngineSrc)\Input\config.properties.shippable" />
       <_EdcPython Include="$(_EdcEngineSrc)\src\com\automation\PythonAPI\**\*.exe" />
     </ItemGroup>
     <Copy SourceFiles="@(_EdcInput)"
           DestinationFiles="@(_EdcInput->'$(PublishDir)Input\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"
           Condition="Exists('$(_EdcEngineSrc)\Input')" />
+    <!-- Always overwrite config.properties in the published output with the
+         blank shippable template so customers receive a UI with all checkboxes
+         off, all URLs blank. -->
+    <Copy SourceFiles="$(_EdcEngineSrc)\Input\config.properties.shippable"
+          DestinationFiles="$(PublishDir)Input\config.properties"
+          Condition="Exists('$(_EdcEngineSrc)\Input\config.properties.shippable')" />
     <Copy SourceFiles="@(_EdcPython)"
           DestinationFiles="@(_EdcPython->'$(PublishDir)PythonAPI\%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"
@@ -133,14 +144,24 @@
           SkipUnchangedFiles="true"
           Condition="'@(_EdcExternalRunInput)' != ''" />
 
-    <!-- Seed config.properties from the repo template ONLY when no file exists
-         yet at the runtime location. This preserves user edits across rebuilds
-         while still giving a first-time developer a working config to edit. -->
-    <Copy SourceFiles="$(_EdcEngineSrc)\Input\config.properties"
+    <!-- Seed config.properties from the blank shippable template ONLY when no
+         file exists yet at the runtime location. The shippable template ships
+         all checkboxes off and all URLs blank, matching what customers see on
+         first launch. Subsequent rebuilds preserve the user's saved edits. -->
+    <Copy SourceFiles="$(_EdcEngineSrc)\Input\config.properties.shippable"
           DestinationFiles="$(OutDir)Input\config.properties"
-          Condition="Exists('$(_EdcEngineSrc)\Input\config.properties') And !Exists('$(OutDir)Input\config.properties')" />
+          Condition="Exists('$(_EdcEngineSrc)\Input\config.properties.shippable') And !Exists('$(OutDir)Input\config.properties')" />
     <Warning Text="[EDC] External Input folder '$(EdcExternalInput)' not found. Python helper EXEs (DeleteAllFolder.exe, etc.) and SLPK/VTPK assets will be missing at runtime. Override with /p:EdcExternalInput=&lt;path&gt;."
              Condition="!Exists('$(EdcExternalInput)')" />
+  </Target>
+
+  <!-- On Clean (and therefore on Rebuild = Clean+Build), wipe the staged
+       config.properties so the very next Build re-seeds it from the blank
+       shippable template. This implements the requirement that a Rebuild
+       returns the UI to all-No / blank URLs / Reload-disabled. -->
+  <Target Name="EdcCleanStagedConfig" BeforeTargets="CoreClean">
+    <Delete Files="$(OutDir)Input\config.properties"
+            Condition="Exists('$(OutDir)Input\config.properties')" />
   </Target>
 
 </Project>
