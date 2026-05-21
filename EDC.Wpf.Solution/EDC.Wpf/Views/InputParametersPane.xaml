@@ -1,0 +1,310 @@
+<UserControl x:Class="EDC.Wpf.Views.InputParametersPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:EDC.Wpf.ViewModels"
+             xmlns:models="clr-namespace:EDC.Core.Models;assembly=EDC.Core"
+             d:DataContext="{d:DesignInstance vm:MainViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{DynamicResource WindowBackgroundBrush}">
+
+    <UserControl.Resources>
+        <!-- Shared eye-icon reveal toggle: stays legible in dark & light themes;
+             gives a soft accent halo on hover so the glyph never disappears. -->
+        <Style x:Key="EyeRevealToggle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Content" Value="&#xE7B3;"/>
+            <Setter Property="ToolTip" Value="Show / hide password"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              TextElement.FontFamily="Segoe MDL2 Assets"
+                                              TextElement.FontSize="14"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Content" Value="&#xED1A;"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Watermark / placeholder style for TextBox.
+             Self-themed via DynamicResource so a Dark<->Light theme swap actually
+             repaints the URL / Username inputs. (Previously this used
+             BasedOn StaticResource ProTextBox, which snapshots the original
+             theme's brushes at parse time and stays pinned across swaps.) -->
+        <Style x:Key="WatermarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource BrandBlueBrush}"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource BrandBlueBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="1"
+                                SnapsToDevicePixels="True">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              Focusable="False"
+                                              HorizontalScrollBarVisibility="Hidden"
+                                              VerticalScrollBarVisibility="Hidden"/>
+                                <TextBlock x:Name="Watermark"
+                                           Text="{TemplateBinding Tag}"
+                                           Foreground="{DynamicResource TextDisabledBrush}"
+                                           Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                           Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BrandBlueBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Text" Value=""/>
+                                    <Condition Property="IsFocused" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Watermark" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+        <StackPanel>
+
+            <!-- Portal section -->
+            <Border Style="{DynamicResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="Portal" Style="{DynamicResource SectionHeaderText}" Margin="0,0,0,12"/>
+
+                    <TextBlock Style="{DynamicResource FieldLabel}">
+                        <Run Text="Portal URL"/><Run Text=" *" Foreground="{DynamicResource StatusFailTextBrush}"/>
+                    </TextBlock>
+                    <TextBox Style="{DynamicResource WatermarkTextBox}"
+                             Tag="e.g. https://gis.example.com/portal/home"
+                             Text="{Binding Config.PortalUrl, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Full URL to your ArcGIS Portal sign-in page."
+                             Margin="0,0,0,10"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{DynamicResource FieldLabel}">
+                                <Run Text="Admin Username"/><Run Text=" *" Foreground="{DynamicResource StatusFailTextBrush}"/>
+                            </TextBlock>
+                            <TextBox Style="{DynamicResource WatermarkTextBox}"
+                                     Tag="Portal admin username"
+                                     ToolTip="Portal administrator account used to authenticate the tests."
+                                     Text="{Binding Config.PortalUserName, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Style="{DynamicResource FieldLabel}">
+                                <Run Text="Admin Password"/><Run Text=" *" Foreground="{DynamicResource StatusFailTextBrush}"/>
+                            </TextBlock>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <PasswordBox x:Name="PortalPasswordBox" Grid.Column="0"
+                                             Style="{DynamicResource ProPasswordBox}"
+                                             ToolTip="Portal administrator password. Click the eye icon to reveal."
+                                             PasswordChanged="PortalPasswordBox_OnPasswordChanged"
+                                             Visibility="{Binding ElementName=RevealPortalPasswordToggle, Path=IsChecked, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                                <TextBox x:Name="PortalPasswordReveal" Grid.Column="0"
+                                         Style="{DynamicResource ProTextBox}"
+                                         ToolTip="Portal administrator password (revealed)."
+                                         Text="{Binding Config.PortalPassword, UpdateSourceTrigger=PropertyChanged}"
+                                         Visibility="{Binding ElementName=RevealPortalPasswordToggle, Path=IsChecked, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <ToggleButton x:Name="RevealPortalPasswordToggle" Grid.Column="1"
+                                              Style="{StaticResource EyeRevealToggle}"
+                                              ToolTip="Show / hide portal password"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <CheckBox Style="{DynamicResource ProCheckBox}"
+                              Content="ArcGIS Enterprise for Kubernetes"
+                              ToolTip="Tick when validating an Enterprise on Kubernetes deployment. Data-store and server-role tests will be disabled."
+                              IsChecked="{Binding Config.Kubernetes}"/>
+
+                    <Separator Margin="0,12"/>
+                    <TextBlock Text="Browser" Style="{DynamicResource FieldLabel}" Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton GroupName="browser" Content="Chrome" Foreground="{DynamicResource TextPrimaryBrush}"
+                                     ToolTip="Run the Selenium tests in Google Chrome."
+                                     IsChecked="{Binding Config.Browser, Converter={StaticResource BrowserToBoolConverter}, ConverterParameter=Chrome}"
+                                     Margin="0,0,16,0"/>
+                        <RadioButton GroupName="browser" Content="Edge" Foreground="{DynamicResource TextPrimaryBrush}"
+                                     ToolTip="Run the Selenium tests in Microsoft Edge."
+                                     IsChecked="{Binding Config.Browser, Converter={StaticResource BrowserToBoolConverter}, ConverterParameter=Edge}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Configuration / Servers -->
+            <Border Style="{DynamicResource CardBorder}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Servers" Style="{DynamicResource SectionHeaderText}" VerticalAlignment="Center"/>
+                            <Border Margin="8,0,0,0" Padding="6,1" CornerRadius="8"
+                                    Background="{DynamicResource ControlBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding VisibleServers.Count}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="12" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="+ Add server"
+                                Style="{DynamicResource ProButton}"
+                                Padding="10,4"
+                                Command="{Binding AddServerCommand}"
+                                IsEnabled="{Binding CanAddServer}"
+                                ToolTip="Add another federated ArcGIS Server to validate."/>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding VisibleServers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:ServerSlot}">
+                                <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1"
+                                        CornerRadius="2" Padding="12" Margin="0,0,0,8"
+                                        Background="{DynamicResource CardBackgroundBrush}">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="200"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Server URL" Style="{DynamicResource FieldLabel}"/>
+                                                <TextBox Style="{DynamicResource WatermarkTextBox}"
+                                                         Tag="e.g. https://server.example.com/arcgis"
+                                                         ToolTip="Full URL to ArcGIS Server admin/manager (e.g. https://server.example.com/arcgis)."
+                                                         Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Role" Style="{DynamicResource FieldLabel}"/>
+                                                <ComboBox Style="{DynamicResource ProComboBox}"
+                                                          ToolTip="ArcGIS Server role for this URL (Hosting, GeoAnalytics, Raster, GeoEvent, etc.)."
+                                                          ItemsSource="{x:Static models:ServerSlot.Roles}"
+                                                          SelectedItem="{Binding Role}"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="4" Width="32" Height="32"
+                                                    Style="{DynamicResource ProButton}"
+                                                    VerticalAlignment="Bottom"
+                                                    Padding="6"
+                                                    IsEnabled="{Binding DataContext.CanRemoveServer, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    ToolTip="Remove this server"
+                                                    Command="{Binding DataContext.RemoveServerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Viewbox Width="14" Height="14" Stretch="Uniform">
+                                                    <Path Data="{StaticResource Calcite.Geom.Trash}"
+                                                          Fill="{DynamicResource TextPrimaryBrush}"/>
+                                                </Viewbox>
+                                            </Button>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Admin Username" Style="{DynamicResource FieldLabel}"/>
+                                                <TextBox Style="{DynamicResource WatermarkTextBox}"
+                                                         Tag="Server admin username (optional if federated)"
+                                                         ToolTip="Server administrator account (leave blank if Federated; portal credentials will be used)."
+                                                         Text="{Binding AdminUsername, UpdateSourceTrigger=PropertyChanged}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Admin Password" Style="{DynamicResource FieldLabel}"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <PasswordBox Grid.Column="0"
+                                                                 Style="{DynamicResource ProPasswordBox}"
+                                                                 ToolTip="Server administrator password (only required for non-federated servers). Click the eye icon to reveal."
+                                                                 Loaded="ServerPasswordBox_OnLoaded"
+                                                                 PasswordChanged="ServerPasswordBox_OnPasswordChanged"
+                                                                 Visibility="{Binding ElementName=SrvRevealToggle, Path=IsChecked, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                                                    <TextBox Grid.Column="0"
+                                                             Style="{DynamicResource ProTextBox}"
+                                                             ToolTip="Server administrator password (revealed)."
+                                                             Text="{Binding AdminPassword, UpdateSourceTrigger=PropertyChanged}"
+                                                             Visibility="{Binding ElementName=SrvRevealToggle, Path=IsChecked, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    <ToggleButton x:Name="SrvRevealToggle" Grid.Column="1"
+                                                                  Style="{StaticResource EyeRevealToggle}"
+                                                                  ToolTip="Show / hide server password"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                        <CheckBox Style="{DynamicResource ProCheckBox}" Content="Federated"
+                                                  ToolTip="When checked, the server uses the Portal account above for authentication."
+                                                  IsChecked="True" IsEnabled="False"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

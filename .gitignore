@@ -1,0 +1,59 @@
+# ─────────────────────────── EDC repo .gitignore ───────────────────────────
+# Distribution artifact lives on \\esri.com\psdata\PSProductsQA\EDC — not git.
+*.zip
+*.7z
+*.tar.gz
+
+# ── .NET / WPF ──
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userprefs
+*.pdb
+*.cache
+.vs/
+
+# Published self-contained EXE + payload (any publish/ dir under the solution)
+EDC.Wpf.Solution/EDC.Wpf/bin/Release/**/publish/
+EDC.Wpf.Solution/EDC.Wpf/bin/Release/**/*.zip
+EDC.Wpf.Solution/publish/
+EDC.Wpf.Solution/**/publish/
+
+# ── Java / Maven ──
+target/
+*.class
+*.jar
+!Enterprise Deployment Check/src/**/*.jar  # keep any source-controlled libs if added
+*.war
+*.ear
+.classpath.bak
+
+# Eclipse / IDE local state — keep .project / .classpath / .settings since the
+# Java project is Eclipse-managed and they're useful for new contributors.
+
+# ── Python helpers ──
+**/PythonAPI/build/
+**/PythonAPI/dist/
+**/PythonAPI/__pycache__/
+*.pyc
+
+# Built PyInstaller binaries and bulk sample data living under Input/.
+# These are distributed via \\esri.com\psdata\PSProductsQA\EDC, not git.
+Enterprise Deployment Check/Input/*.exe
+Enterprise Deployment Check/Input/*.slpk
+Enterprise Deployment Check/Input/*.vtpk
+Enterprise Deployment Check/Input/*.pdf
+EDC.Wpf.Solution/EDC.Wpf/bin/Release/**/publish/Input/*.exe
+EDC.Wpf.Solution/EDC.Wpf/bin/Release/**/publish/Input/*.slpk
+EDC.Wpf.Solution/EDC.Wpf/bin/Release/**/publish/Input/*.vtpk
+
+# ── Test results ──
+EnterpriseDeploymentCheckResults/
+**/EnterpriseDeploymentCheckResults/
+
+# ── Windows / editor cruft ──
+Thumbs.db
+desktop.ini
+*.swp
+*.tmp

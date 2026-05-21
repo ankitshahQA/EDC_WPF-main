@@ -1,0 +1,89 @@
+// Enterprise Deployment Check — Jenkins declarative pipeline
+// ---------------------------------------------------------------------------
+// Runs the EDC engine in headless mode against a Jenkins-supplied
+// config.properties, archives the Extent report + logs, and reports pipeline
+// status from the engine's process exit code.
+//
+// Prereqs on the Jenkins agent (Windows):
+//   - JDK 17 (Temurin) installed and on PATH (or wrap with `tool 'jdk-17'`)
+//   - Maven installed (only if you build the jar in the pipeline)
+//   - Chrome / Edge installed for the Selenium tests
+//
+// Add a Jenkins credential of type "Secret file" with id `edc-config` if you
+// want to inject a per-environment config.properties instead of using the
+// in-repo one — uncomment the withCredentials block below.
+// ---------------------------------------------------------------------------
+pipeline {
+    agent { label 'windows' }
+
+    parameters {
+        string(name: 'TESTS',
+               defaultValue: 'LoginPortal,CreateFeatureLayer,CreateMap',
+               description: 'Comma-separated test keys, or "all". See `java -jar EDC.jar --help`.')
+        booleanParam(name: 'FAIL_ON_SKIP',
+                     defaultValue: false,
+                     description: 'Mark build UNSTABLE/FAILURE if any test was skipped')
+    }
+
+    options {
+        timeout(time: 90, unit: 'MINUTES')
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        ENGINE_DIR    = 'Enterprise Deployment Check'
+        ENGINE_JAR    = "${WORKSPACE}\\Enterprise Deployment Check\\target\\Enterprise_Deployment_Check-0.0.1-SNAPSHOT-jar-with-dependencies.jar"
+        EDC_CONFIG    = "${WORKSPACE}\\Enterprise Deployment Check\\Input\\config.properties"
+        EDC_RESULTS   = "${WORKSPACE}\\edc-results"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps { checkout scm }
+        }
+
+        stage('Build engine jar') {
+            steps {
+                bat 'cd "%ENGINE_DIR%" && mvn -B -DskipTests clean package'
+            }
+        }
+
+        stage('Run EDC (headless)') {
+            steps {
+                // withCredentials([file(credentialsId: 'edc-config', variable: 'EDC_CONFIG')]) {
+                script {
+                    def extra = params.FAIL_ON_SKIP ? '--fail-on-skip' : ''
+                    def rc = bat returnStatus: true, script: """
+                        java -jar "%ENGINE_JAR%" ^
+                          --headless ^
+                          --config  "%EDC_CONFIG%" ^
+                          --results "%EDC_RESULTS%" ^
+                          --tests   "${params.TESTS}" ^
+                          ${extra}
+                    """
+                    // Engine exit codes:
+                    //   0 pass | 1 failure | 2 skipped(+--fail-on-skip) | 3 config | 4 error
+                    if (rc == 0)        { currentBuild.result = 'SUCCESS' }
+                    else if (rc == 2)   { currentBuild.result = 'UNSTABLE' }
+                    else                { currentBuild.result = 'FAILURE' }
+                    echo "Engine exit code: ${rc}"
+                }
+                // }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Extent report HTML + step logs
+            archiveArtifacts artifacts: 'edc-results/**/*', allowEmptyArchive: true, fingerprint: false
+            // Optional: publish the HTML report inline (requires HTML Publisher plugin)
+            // publishHTML(target: [
+            //     reportDir:  'edc-results',
+            //     reportFiles: '**/Reports/*.html',
+            //     reportName: 'EDC Extent Report',
+            //     keepAll: true, alwaysLinkToLastBuild: true, allowMissing: true])
+        }
+    }
+}

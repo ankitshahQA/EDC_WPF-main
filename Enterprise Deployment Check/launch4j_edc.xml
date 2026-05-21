@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch4jConfig>
+  <dontWrapJar>false</dontWrapJar>
+  <headerType>gui</headerType>
+  <jar>target\EnterpriseDeploymentCheck.jar</jar>
+  <outfile>target\EnterpriseDeploymentCheck.exe</outfile>
+  <errTitle></errTitle>
+  <cmdLine></cmdLine>
+  <chdir>.</chdir>
+  <priority>normal</priority>
+  <downloadUrl>http://java.com/download</downloadUrl>
+  <supportUrl></supportUrl>
+  <stayAlive>true</stayAlive>
+  <restartOnCrash>false</restartOnCrash>
+  <manifest>edc.manifest</manifest>
+  <icon></icon>
+  <jre>
+    <path>jre;%PATH% ;%Path%; %path%;%JAVA_HOME%</path>
+    <requiresJdk>false</requiresJdk>
+    <requires64Bit>false</requires64Bit>
+    <minVersion>1.8</minVersion>
+    <maxVersion></maxVersion>
+  </jre>
+  <classPath>
+    <mainClass>com.automation.testcases.EDCMainFrame</mainClass>
+  </classPath>
+</launch4jConfig>

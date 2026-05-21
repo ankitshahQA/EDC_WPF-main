@@ -1,0 +1,33 @@
+﻿<Application x:Class="EDC.Wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:EDC.Wpf.Converters"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Fluent.Ribbon theme (11.x layout: Themes/Generic.xaml + a color variant under Themes/Themes/) -->
+                <ResourceDictionary Source="pack://application:,,,/Fluent;component/Themes/Generic.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Fluent;component/Themes/Themes/Dark.Cobalt.xaml" />
+
+                <!-- ArcGIS Pro / Calcite palette + dark surfaces -->
+                <ResourceDictionary Source="Themes/ArcProPalette.xaml" />
+                <ResourceDictionary Source="Themes/Dark.xaml" />
+
+                <!-- Esri Calcite UI Icons (geometry + Viewbox resources). -->
+                <ResourceDictionary Source="Themes/CalciteIcons.xaml" />
+
+                <!-- Bigger title-bar icon: overrides Fluent.Ribbon's default 16x16 icon. -->
+                <ResourceDictionary Source="Themes/RibbonWindowBigIcon.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters available app-wide so child UserControls (panes hosted by AvalonDock)
+                 can resolve them via StaticResource regardless of logical-tree quirks. -->
+            <conv:LogLevelToBrushConverter x:Key="LogLevelToBrushConverter"/>
+            <conv:LogLevelToGlyphConverter x:Key="LogLevelToGlyphConverter"/>
+            <conv:LogLevelToCalciteGeometryConverter x:Key="LogLevelToCalciteGeometryConverter"/>
+            <conv:BrowserToBoolConverter   x:Key="BrowserToBoolConverter"/>
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,146 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\EDC.Core\EDC.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Dirkster.AvalonDock" Version="4.74.1" />
+    <PackageReference Include="Fluent.Ribbon" Version="11.0.2" />
+    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Enterprise Deployment Check</AssemblyName>
+    <RootNamespace>EDC.Wpf</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <AssemblyTitle>Enterprise Deployment Check</AssemblyTitle>
+    <Product>Enterprise Deployment Check</Product>
+    <Company>Esri</Company>
+    <ApplicationIcon>Assets\esri_logo.ico</ApplicationIcon>
+    <!--
+      Single-file publish settings: WPF needs native libs extracted to a
+      stable on-disk location, otherwise WindowsBase.dll throws
+      DllNotFoundException at startup (PresentationNative_cor3.dll, wpfgfx_cor3.dll, etc.).
+      Compression is left off because the compressed bundle re-extracts on every
+      run and is known to be flaky on locked-down user profiles.
+    -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Esri brand assets used by Window.Icon and in-app logo strip. -->
+    <Resource Include="Assets\esri_logo.png" />
+    <Resource Include="Assets\esri_logo.ico" />
+  </ItemGroup>
+
+  <!-- ============================================================
+       Zip-distribution layout: after Publish, lay out the engine /
+       runtime / Input / PythonAPI folders next to the exe.
+       Then zip the whole publish directory.
+       ============================================================ -->
+  <PropertyGroup>
+    <_EdcRepoRoot>$(MSBuildThisFileDirectory)..\..</_EdcRepoRoot>
+    <_EdcEngineSrc>$(_EdcRepoRoot)\Enterprise Deployment Check</_EdcEngineSrc>
+  </PropertyGroup>
+
+  <Target Name="EdcCopyPayload" AfterTargets="Publish">
+    <ItemGroup>
+      <_EdcInput Include="$(_EdcEngineSrc)\Input\**\*.*" />
+      <_EdcPython Include="$(_EdcEngineSrc)\src\com\automation\PythonAPI\**\*.exe" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_EdcInput)"
+          DestinationFiles="@(_EdcInput->'$(PublishDir)Input\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_EdcEngineSrc)\Input')" />
+    <Copy SourceFiles="@(_EdcPython)"
+          DestinationFiles="@(_EdcPython->'$(PublishDir)PythonAPI\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_EdcPython)' != ''" />
+    <MakeDir Directories="$(PublishDir)engine;$(PublishDir)runtime" />
+    <Message Importance="high"
+             Text="[EDC] Published to $(PublishDir).  Drop the fat JAR into '$(PublishDir)engine\edc.jar' and an Adoptium JRE 17 into '$(PublishDir)runtime\' before zipping." />
+  </Target>
+
+  <Target Name="EdcZipPublish" AfterTargets="EdcCopyPayload">
+    <PropertyGroup>
+      <_EdcZipPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\Enterprise Deployment Check.zip</_EdcZipPath>
+    </PropertyGroup>
+    <Delete Files="$(_EdcZipPath)" Condition="Exists('$(_EdcZipPath)')" />
+    <ZipDirectory SourceDirectory="$(PublishDir)" DestinationFile="$(_EdcZipPath)" Overwrite="true" />
+    <Message Importance="high" Text="[EDC] Zipped distribution: $(_EdcZipPath)" />
+  </Target>
+
+  <!-- ============================================================
+       F5 / dotnet build convenience: stage the freshly built Java
+       fat-jar and the Input folder into $(OutDir) so that launching
+       the WPF app from VS / `dotnet run` finds engine\edc.jar and
+       Input\config.properties without any manual copy step.
+
+       The Maven jar is NOT built automatically (Maven may not be on
+       PATH and the build is slow); a warning is logged if it's
+       missing so the developer knows what to run.
+       ============================================================ -->
+  <PropertyGroup>
+    <_EdcFatJar>$(_EdcEngineSrc)\target\Enterprise_Deployment_Check-0.0.1-SNAPSHOT-jar-with-dependencies.jar</_EdcFatJar>
+    <!-- External canonical Input folder that holds the 8 Python helper EXEs
+         (DeleteAllFolder.exe, etc.) plus the SLPK/VTPK upload assets the test
+         suite needs at runtime. Overridable via /p:EdcExternalInput=... -->
+    <EdcExternalInput Condition="'$(EdcExternalInput)' == ''">C:\NET_PY_JA\Enterprise Deployment Check\Enterprise Deployment Check\Input</EdcExternalInput>
+  </PropertyGroup>
+
+  <Target Name="EdcStageEngineForRun" AfterTargets="Build">
+    <MakeDir Directories="$(OutDir)engine" />
+    <Copy SourceFiles="$(_EdcFatJar)"
+          DestinationFiles="$(OutDir)engine\edc.jar"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_EdcFatJar)')" />
+    <Warning Text="[EDC] Engine jar not found at '$(_EdcFatJar)'. Tests will fail at runtime. Run: cd &quot;Enterprise Deployment Check&quot; ; mvn -B -DskipTests clean package"
+             Condition="!Exists('$(_EdcFatJar)')" />
+
+    <ItemGroup>
+      <!-- Exclude config.properties from the F5/run staging copy: the UI writes
+           user edits (Save button) directly into $(OutDir)Input\config.properties,
+           and MSBuild's SkipUnchangedFiles only compares size+timestamp (not
+           content origin), so a subsequent rebuild would overwrite the user's
+           saved values with the repo template. Seed the runtime copy once below
+           (only when missing) to keep first-launch defaults working. -->
+      <_EdcRunInput Include="$(_EdcEngineSrc)\Input\**\*.*"
+                    Exclude="$(_EdcEngineSrc)\Input\config.properties" />
+      <!-- Pull every file (Python helper EXEs, SLPK/VTPK assets, Help PDF, etc.)
+           from the external canonical Input folder if available on this machine.
+           These overlay the repo's Input so the EXEs needed by PythonHelp.java
+           are present for F5 / dotnet run. -->
+      <_EdcExternalRunInput Include="$(EdcExternalInput)\**\*.*"
+                            Exclude="$(EdcExternalInput)\config.properties"
+                            Condition="Exists('$(EdcExternalInput)')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_EdcRunInput)"
+          DestinationFiles="@(_EdcRunInput->'$(OutDir)Input\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_EdcRunInput)' != ''" />
+    <Copy SourceFiles="@(_EdcExternalRunInput)"
+          DestinationFiles="@(_EdcExternalRunInput->'$(OutDir)Input\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(_EdcExternalRunInput)' != ''" />
+
+    <!-- Seed config.properties from the repo template ONLY when no file exists
+         yet at the runtime location. This preserves user edits across rebuilds
+         while still giving a first-time developer a working config to edit. -->
+    <Copy SourceFiles="$(_EdcEngineSrc)\Input\config.properties"
+          DestinationFiles="$(OutDir)Input\config.properties"
+          Condition="Exists('$(_EdcEngineSrc)\Input\config.properties') And !Exists('$(OutDir)Input\config.properties')" />
+    <Warning Text="[EDC] External Input folder '$(EdcExternalInput)' not found. Python helper EXEs (DeleteAllFolder.exe, etc.) and SLPK/VTPK assets will be missing at runtime. Override with /p:EdcExternalInput=&lt;path&gt;."
+             Condition="!Exists('$(EdcExternalInput)')" />
+  </Target>
+
+</Project>

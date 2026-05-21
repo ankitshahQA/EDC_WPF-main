@@ -1,0 +1,79 @@
+# Enterprise Deployment Check — Azure DevOps pipeline
+# -----------------------------------------------------------------------------
+# Runs the EDC engine in headless mode against a pipeline-supplied
+# config.properties and publishes the Extent report + logs as build artifacts.
+#
+# Variables you can override per environment (Library / Variable group):
+#   EDC_CONFIG_FILE      Path (in repo OR secure-file) to a config.properties
+#   EDC_TESTS            Comma-separated test keys, or 'all' (see --help)
+#   EDC_FAIL_ON_SKIP     'true' to fail the job when any test is skipped
+#
+# Prereqs on the self-hosted Windows agent:
+#   - JDK 17 (Temurin) on PATH
+#   - Maven on PATH (only needed if you build the jar in CI; otherwise stage
+#     a prebuilt jar as a pipeline artifact and download it instead)
+#   - Chrome / Edge installed for the Selenium tests
+# -----------------------------------------------------------------------------
+
+trigger: none           # manual / scheduled only; tests touch live portals
+pr: none
+
+pool:
+  name: 'self-hosted-windows'   # adjust to your agent pool
+
+parameters:
+  - name: tests
+    displayName: 'Tests to run (comma-separated or "all")'
+    type: string
+    default: 'LoginPortal,CreateFeatureLayer,CreateMap'
+  - name: failOnSkip
+    displayName: 'Fail job if any test is skipped'
+    type: boolean
+    default: false
+
+variables:
+  EDC_CONFIG_FILE:   '$(Build.SourcesDirectory)/Enterprise Deployment Check/Input/config.properties'
+  EDC_RESULTS_DIR:   '$(Build.ArtifactStagingDirectory)/edc-results'
+  ENGINE_JAR:        '$(Build.SourcesDirectory)/Enterprise Deployment Check/target/Enterprise_Deployment_Check-0.0.1-SNAPSHOT-jar-with-dependencies.jar'
+
+steps:
+  - checkout: self
+    fetchDepth: 1
+
+  - task: JavaToolInstaller@0
+    inputs:
+      versionSpec: '17'
+      jdkArchitectureOption: 'x64'
+      jdkSourceOption: 'PreInstalled'
+
+  # Build the fat jar (skip if you publish/download a prebuilt artifact instead)
+  - script: mvn -B -DskipTests clean package
+    workingDirectory: 'Enterprise Deployment Check'
+    displayName: 'Build engine jar'
+
+  # Optional: download a secure config from the pipeline library instead of
+  # using the in-repo one. Set EDC_CONFIG_FILE accordingly.
+  # - task: DownloadSecureFile@1
+  #   name: edcConfig
+  #   inputs:
+  #     secureFile: 'config.properties.prod'
+
+  - powershell: |
+      $extra = @()
+      if ('${{ parameters.failOnSkip }}' -eq 'True') { $extra += '--fail-on-skip' }
+      java -jar "$(ENGINE_JAR)" `
+        --headless `
+        --config  "$(EDC_CONFIG_FILE)" `
+        --results "$(EDC_RESULTS_DIR)" `
+        --tests   "${{ parameters.tests }}" `
+        @extra
+      exit $LASTEXITCODE
+    displayName: 'Run Enterprise Deployment Check'
+    # Exit codes: 0 pass | 1 failure | 2 skipped(+--fail-on-skip) | 3 config | 4 error
+
+  - task: PublishBuildArtifacts@1
+    condition: always()
+    displayName: 'Publish Extent report + logs'
+    inputs:
+      pathToPublish: '$(EDC_RESULTS_DIR)'
+      artifactName: 'edc-results'
