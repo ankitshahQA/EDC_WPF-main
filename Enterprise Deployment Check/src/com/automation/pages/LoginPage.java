@@ -43,7 +43,9 @@ public class LoginPage extends TestBase {
 	final String ENTERPRISE_ARROW_XPATH = "(//span[@class='accordion-icon'])[1]";
 	final String ARCGIS_XPATH = "//div[@id='loginTitle' and @aria-expanded='true']";
 	final String ARCGIS_ARROW_XPATH = "//div[@id='loginTitle']";
-
+	final String PROFILE_XPATH="//button[contains(@id,'account')]";
+	final String APPSWITCHER_JSPATH="document.querySelector('arcgis-app-switcher').shadowRoot.querySelector('calcite-button')";
+	final String APPSWITCHER_XPATH="//button[@id='esri-header-apps-control']";
 	String msg = "";
 	CommonFunction cfunction = new CommonFunction();
 
@@ -95,21 +97,6 @@ public class LoginPage extends TestBase {
 
 	public void loginToApplication(String usernametxt, String pwdtxt) throws Exception {
 
-		/*
-		 * if (SAML ) { if (driver.findElements(By.xpath(ENTERPRISE_XPATH)).size() == 0)
-		 * { msg = "Enterprise Login section expanded"; try {
-		 * if(!cfunction.elementIsDisplayed(ENTERPRISE_SSO_XPATH, 3)) {
-		 * cfunction.Commmon_Click("xpath", ENTERPRISE_ARROW_XPATH); cfunction.sync(2);
-		 * CommonFunction.logStatus("PASS", msg); SAMLLogin=false; } }catch (Exception
-		 * e) { e.printStackTrace(); CommonFunction.logStatusWithException("FAIL", msg,
-		 * e); } } msg = "Click to login through SAML"; try {
-		 * cfunction.Commmon_Click("xpath", ENTERPRISE_SSO_XPATH); cfunction.sync(5);
-		 * CommonFunction.logStatus("PASS", msg); } catch (Exception e) {
-		 * SAMLLogin=false; e.printStackTrace();
-		 * CommonFunction.logStatusWithException("FAIL", msg, e); }
-		 * 
-		 * //} else {
-		 */
 		if (driver.findElements(By.xpath(ARCGIS_XPATH)).size() == 0) {
 			msg = "ArcGIS Login section expanded";
 			cfunction.Commmon_Click("xpath", ARCGIS_ARROW_XPATH);
@@ -117,11 +104,6 @@ public class LoginPage extends TestBase {
 		}
 		msg = "Enter Username";
 		try {
-			// if (cfunction.elementexist(LOGIN_FRAME_XPATH)){
-			// driver.switchTo().frame("oAuthFrame");
-			// }
-			// input[@id='user_username']
-			// cfunction.waitforelement(USERNAME_XPATH);
 			cfunction.CommonTextBox_Input(USERNAME_XPATH, usernametxt);
 			cfunction.sync(2);
 			CommonFunction.logStatus("PASS", msg);
@@ -142,40 +124,36 @@ public class LoginPage extends TestBase {
 		try {
 			cfunction.Commmon_Click("xpath", SIGNINSUBMIT_XPATH);
 			CommonFunction.logStatus("PASS", msg);
-			logindone = true;
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			CommonFunction.logStatusWithException("FAIL", msg, e);
 		}
-		try {
-			cfunction.sync(6);
-			//cfunction.waitForloadingToEnd();
-		} catch (Exception e) {
-			e.printStackTrace();
-			// CommonFunction.logStatus("FAIL", msg+e);
-		}
-		// }
 		
-		// System.out.println("Logged in as " + usernametxt);
+		msg = "Verify user is able to sign in";
+		try {
+			cfunction.sync(20);
+			if(projectVersion.contains("10.")) {
+				cfunction.waitforelement(APPSWITCHER_XPATH, 25);
+				logindone = true;
+				CommonFunction.logStatus("PASS", msg);
+			}else {
+				if(cfunction.getWebelement_JSpath(APPSWITCHER_JSPATH)!=null) {
+					logindone = true;
+					CommonFunction.logStatus("PASS", msg);
+				}
+		}} catch (Exception e) {
+			e.printStackTrace();
+			CommonFunction.logStatusWithException("FAIL", msg, e);
+			logindone = false;
+		}
+		
 
 	}
 
 	public void loginToApplication_10_6_1(String usernametxt, String pwdtxt) throws Exception {
 
-		/*
-		 * if (SAML) { driver.switchTo().frame("oAuthFrame"); if
-		 * (driver.findElements(By.xpath(ENTERPRISE_XPATH)).size() == 0) { msg =
-		 * "Enterprise Login section expanded"; try { cfunction.Commmon_Click("xpath",
-		 * ENTERPRISE_ARROW_XPATH); cfunction.sync(2); CommonFunction.logStatus("PASS",
-		 * msg); } catch (Exception e) { e.printStackTrace();
-		 * CommonFunction.logStatusWithException("FAIL", msg, e); } } msg =
-		 * "Click to login through SAML"; try { cfunction.Commmon_Click("xpath",
-		 * ENTERPRISE_SSO_XPATH); cfunction.sync(5); CommonFunction.logStatus("PASS",
-		 * msg); } catch (Exception e) { e.printStackTrace();
-		 * CommonFunction.logStatusWithException("FAIL", msg, e); }
-		 * 
-		 * } else {
-		 */
+		
 		msg = "Enter Username";
 		try {
 			// if (cfunction.elementexist(LOGIN_FRAME_XPATH)){

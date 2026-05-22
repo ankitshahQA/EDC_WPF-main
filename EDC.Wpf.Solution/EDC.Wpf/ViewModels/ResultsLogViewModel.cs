@@ -172,7 +172,13 @@ public partial class ResultsLogViewModel : ObservableObject
             }
             else
             {
-                cur.IsStopped = true;
+                // Same fallback as StartGroup: derive outcome from the last
+                // status entry observed (covers tests that called
+                // logStatus("SKIP"/"FAIL"/"PASS") without throwing). If no
+                // status entry exists, fall back to Stopped.
+                FinalizePendingOutcome(cur);
+                if (cur.Outcome is null)
+                    cur.IsStopped = true;
             }
         }
         else if (_currentGroup is not null)
@@ -246,6 +252,37 @@ public partial class ResultsLogViewModel : ObservableObject
 
         Entries.Add(entry);
         if (Entries.Count > MaxRows) Entries.RemoveAt(0);
+
+        // Pre-empt the [EDCTestListener] outcome line for SKIP: in this engine
+        // a "SKIP:" entry is always test-level (TestBase.skipTest emits one
+        // logStatus("SKIP",...) and then throws SkipException; CommonFunction
+        // also emits a single SKIP: per skipped test). There is no concept of a
+        // step-level SKIP that would later be overridden by a PASS. So flip the
+        // group header to "Skipped" the moment the SKIP: line is appended,
+        // instead of waiting for the @AfterMethod listener line — which may
+        // arrive late (or not at all if @AfterMethod is gated off by flagrun /
+        // session). The RecordOutcome guard in this class prevents the listener
+        // line from double-counting when it does arrive.
+        //
+        // ALSO: CommonFunction.logStatus("SKIP", msg) historically routes its
+        // UI text through setTextOrange(...) → writeStatus("warn", ...), so
+        // those skip messages arrive on the wire as "WARN: ... -  Skipped"
+        // (level=Warn). Detect that shape too and treat it as a test-level skip
+        // — otherwise the group header stays at "Running…" forever.
+        bool looksLikeSkip =
+            entry.Level == LogLevel.Skip ||
+            (entry.Level == LogLevel.Warn &&
+             (entry.Message.IndexOf("Step skipped", StringComparison.OrdinalIgnoreCase) >= 0 ||
+              entry.Message.TrimEnd().EndsWith("Skipped", StringComparison.OrdinalIgnoreCase)));
+
+        if (looksLikeSkip
+            && target.Outcome is null
+            && !target.IsStopped
+            && !IsCleanupGroup(target))
+        {
+            target.Outcome = LogLevel.Skip;
+            Skipped++;
+        }
     }
 
     private static bool LooksLikeCleanupMessage(string message)
@@ -312,11 +349,58 @@ public partial class ResultsLogViewModel : ObservableObject
 
     private void StartGroup(string name, bool expanded = true)
     {
-        // Only the freshly opened group stays expanded — collapse the previous one.
-        if (_currentGroup is not null) _currentGroup.IsExpanded = false;
+        // Before opening a new group, finalize the previous one if it never
+        // received a [EDCTestListener] outcome line. This covers test methods
+        // that log a status via CommonFunction.logStatus("SKIP"|"FAIL"|"PASS", ...)
+        // without going through skipTest()/throw new SkipException — TestNG
+        // then runs the @AfterMethod with status SUCCESS, and depending on
+        // ordering the listener line may not reach the WPF stream. The visible
+        // header would otherwise stay at "Running…" even though the log clearly
+        // shows the SKIP / FAIL / PASS line.
+        if (_currentGroup is not null)
+        {
+            FinalizePendingOutcome(_currentGroup);
+            _currentGroup.IsExpanded = false;
+        }
         var group = new TestCaseLogGroup(name, expanded);
         Groups.Add(group);
         _currentGroup = group;
+    }
+
+    /// <summary>
+    /// If <paramref name="g"/> has no Outcome yet and is not the cleanup phase,
+    /// derive an outcome from the LAST PASS/FAIL/SKIP entry observed in the
+    /// group and bump the matching counter. No-op when the group already has
+    /// an outcome (RecordOutcome was called via the listener line).
+    /// </summary>
+    private void FinalizePendingOutcome(TestCaseLogGroup g)
+    {
+        if (g is null) return;
+        if (g.Outcome is not null) return;
+        if (g.IsStopped) return;
+        if (IsCleanupGroup(g)) return;
+
+        LogLevel? last = null;
+        for (int i = g.Entries.Count - 1; i >= 0; i--)
+        {
+            var lvl = g.Entries[i].Level;
+            if (lvl is LogLevel.Pass or LogLevel.Fail or LogLevel.Skip or LogLevel.Error)
+            {
+                last = lvl;
+                break;
+            }
+        }
+        if (last is null) return;
+
+        switch (last.Value)
+        {
+            case LogLevel.Pass: Passed++; break;
+            case LogLevel.Fail: Failed++; break;
+            case LogLevel.Error: Failed++; break;
+            case LogLevel.Skip: Skipped++; break;
+        }
+        // Map Error → Fail for the header glyph (Outcome is the rendered status).
+        g.Outcome = last == LogLevel.Error ? LogLevel.Fail : last.Value;
     }
 
     private static bool TryExtractTestCaseName(string message, out string name)

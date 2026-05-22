@@ -25,7 +25,6 @@ public class Login_To_Portal_TestScenario extends TestBase {
 		// Step message
 		msg = "Login to Portal ";
 		childnode = logger.createNode(msg);
-
 		CommonFunction.OpenURL(Portalurl);
 
 		if (flagKUB) {
@@ -37,8 +36,6 @@ public class Login_To_Portal_TestScenario extends TestBase {
 			if (list1.size() == 0) {
 				lp.verifyPageLoadedand_sign_in();
 			}
-
-			// CommonFunction.waitforpagetoload();
 			List<WebElement> list2 = driver.findElements(By.xpath("//iframe[@id='oAuthFrame']"));
 			if (list2.size() == 0) {
 				lp.loginToApplication(PortalUserName, PortalPassword);

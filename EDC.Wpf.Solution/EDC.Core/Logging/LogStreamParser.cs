@@ -21,7 +21,12 @@ public sealed partial class LogStreamParser
     // Java exception / stack-trace detection — matches lines that *look* like
     // exception output anywhere in the line (so a "FAIL: java.lang.X..." line
     // produced by setTextRed(exp.getLocalizedMessage()) is also caught).
-    [GeneratedRegex(@"(?:^|\s)(?:Exception in thread\b|Caused by:\s|Suppressed:\s|\bat\s+[\w$.<>]+\([^)]*\)|\.{3}\s*\d+\s+more\b|(?:[a-z][\w$]*\.){2,}[A-Z][\w$]*(?:Exception|Error|Throwable)\b|\b(?:Build info|Session info|Driver info|System info):\s)")]
+    // Stack frames may be module-prefixed since Java 9 (e.g.
+    //   "at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)")
+    // — include '/' in the character class so those frames are also filtered.
+    // Also drops Selenium teardown lines emitted when the user closes the
+    // browser mid-run ("Session ID: ...", "*** Element info", "Capabilities {...}").
+    [GeneratedRegex(@"(?:^|\s)(?:Exception in thread\b|Caused by:\s|Suppressed:\s|\bat\s+[\w$./<>]+\([^)]*\)|\.{3}\s*\d+\s+more\b|(?:[a-z][\w$]*\.){2,}[A-Z][\w$]*(?:Exception|Error|Throwable)\b|\b(?:Build info|Session info|Driver info|System info|Session ID|Element info|Capabilities|Host info):\s|\*\*\*\s*Element info)")]
     private static partial Regex JavaExceptionRegex();
 
     // Lines we never want in the user-facing Results Log (mirrors the Swing app's filter).

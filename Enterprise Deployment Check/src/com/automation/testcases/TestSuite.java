@@ -33,6 +33,16 @@ public class TestSuite extends TestBase {
 	 */
 	private static volatile boolean cleanupDone = false;
 
+	/**
+	 * Human-readable reason that subsequent tests are being skipped after
+	 * {@code stop=true} was set. Default value covers the normal case where
+	 * a previous step asked to halt the suite. The {@code @BeforeMethod}
+	 * browser-health probe overrides this to "browser session terminated"
+	 * when it detects that the user closed the browser window manually, so
+	 * the resulting skip log line reads naturally in the UI.
+	 */
+	private static volatile String stopReason = "previous step requested stop";
+
 	@BeforeTest
 	@Parameters({ "platform" })
 	public void SetUpAutomation(String platform) throws Exception {
@@ -115,14 +125,43 @@ public class TestSuite extends TestBase {
 		VDFailResult = 0;
 		extentNodeCreated = false;
 		childnode = null;
+
+		// Browser-health probe. If the user closed the browser window manually
+		// mid-run, the WebDriver session is dead — every subsequent step would
+		// throw NoSuchSessionException before reaching any logStatus(...) /
+		// skipTest(...) call, leaving the WPF Results Log group header stuck at
+		// "Running…" because no outcome line is ever emitted. Detect a dead
+		// session here and flip stop=true so the existing
+		//   if (stop) { skipTest("Not able to proceed with 'X' as previous step requested stop"); return; }
+		// guard at the top of every @Test fires cleanly, producing a SKIP line
+		// per remaining test that the UI converts to a proper "Skipped" header.
+		try {
+			if (!stop && session && driver != null) {
+				try {
+					driver.getWindowHandles();
+				} catch (Throwable sessionGone) {
+					stop = true;
+					stopReason = "browser session terminated";
+					try {
+						setTextRed("Browser session terminated — aborting remaining tests");
+					} catch (Throwable ignored) {
+					}
+				}
+			}
+			
+		} catch (Throwable ignored) {
+			// Probe must never destabilize the suite. Worst case, the original
+			// "stuck at Running…" behaviour is preserved.
+		}
 	}
 
 	@Test(priority = 1)
 	public void ServerAdminLogin() throws InterruptedException, IOException {
 		if (stop) {
-			skipTest("Not able to proceed with 'Login to Server Admin' as previous step requested stop");
+			skipTest("Not able to proceed with 'Login to Server Admin' as " + stopReason);
 			return;
 		}
+		
 		if (!stop) {
 			if (flagloginadmin) {
 				cnt = cnt + 1;
@@ -155,7 +194,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 2)
 	public void ServerManagerLogin() throws InterruptedException, IOException {
 		if (stop) {
-			skipTest("Not able to proceed with 'Login to Server Manager' as previous step requested stop");
+			skipTest("Not able to proceed with 'Login to Server Manager' as " + stopReason);
 			return;
 		}
 		if (!stop) {
@@ -190,7 +229,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 3)
 	public void ValidateDataStores() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Validating Data Stores' as previous step requested stop");
+			skipTest("Not able to proceed with 'Validating Data Stores' as " + stopReason);
 			return;
 		}
 		if (!stop) {
@@ -227,9 +266,10 @@ public class TestSuite extends TestBase {
 	@Test(priority = 4)
 	public void PortalLogin() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Login to Portal' as previous step requested stop");
+			skipTest("Not able to proceed with 'Login to Portal' as " + stopReason);
 			return;
 		}
+		
 		if (!stop) {
 			if (flagloginportal) {
 				cnt = cnt + 1;
@@ -330,9 +370,10 @@ public class TestSuite extends TestBase {
 	@Test(priority = 6)
 	public void CreateFeatureLayer() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Feature Layer' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Feature Layer' as " + stopReason);
 			return;
 		}
+		
 		if (skipSuite) {
 			skipTest(
 					"Skipping 'Create Feature Layer' as previous critical step failed (Portal login / version not found)");
@@ -383,9 +424,10 @@ public class TestSuite extends TestBase {
 	@Test(priority = 7)
 	public void CreateTileLayer() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Tile Layer' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Tile Layer' as " + stopReason);
 			return;
 		}
+		
 		if (skipSuite) {
 			skipTest(
 					"Skipping 'Create Tile Layer' as previous critical step failed (Portal login / version not found)");
@@ -448,7 +490,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 8)
 	public void VerifySceneLayerFunctionality() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Scene Layer Creation' as previous step requested stop");
+			skipTest("Not able to proceed with 'Scene Layer Creation' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -509,7 +551,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 9)
 	public void CreateWebMap() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Web Map' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Web Map' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -566,7 +608,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 10)
 	public void CreateDashboard() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Dashboard Test' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Dashboard Test' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -627,7 +669,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 11)
 	public void CreateStoryMap() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Story Map' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Story Map' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -689,7 +731,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 12)
 	public void CreateExperienceBuilderApp() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Experience Builder' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Experience Builder' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -704,6 +746,17 @@ public class TestSuite extends TestBase {
 					if (session) {
 						if (logindone) {
 							CommonFunction.setUpTest(flagdevtopia);
+							// Emit the test-case banner BEFORE the version-gate check so the
+							// WPF Results Log always opens a "Create Experience Builder"
+							// group for this @Test. Otherwise a sub-12 environment would
+							// fall straight into skipTest(...) without a banner and the
+							// SKIP line would attach to the previous test's group instead
+							// of producing a proper "Skipped" header for Experience Builder.
+							try {
+								setTextGreen("Create Experience Builder functionality started");
+							} catch (Exception ex) {
+								// ex.printStackTrace();
+							}
 							if (projectVersion.startsWith("12.")
 									|| projectVersion.equalsIgnoreCase("Kubernetes12.1.0")) {
 
@@ -712,11 +765,6 @@ public class TestSuite extends TestBase {
 								}
 								if (foldercreateddone) {
 
-									try {
-										setTextGreen("Create Experience Builder functionality started");
-									} catch (Exception ex) {
-										// ex.printStackTrace();
-									}
 									ExperienceBuilder_Functionality_TestScenario ts4 = new ExperienceBuilder_Functionality_TestScenario();
 									ts4.experiencebuilder_functionality();
 
@@ -750,7 +798,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 13)
 	public void CreateWebAppBuilderApp() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create WebApp Builder' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create WebApp Builder' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -816,7 +864,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 14)
 	public void CreateGroups() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Create Group' as previous step requested stop");
+			skipTest("Not able to proceed with 'Create Group' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -872,7 +920,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 15)
 	public void VerifyOrganizationFunctionality() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Verify Organization' as previous step requested stop");
+			skipTest("Not able to proceed with 'Verify Organization' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {
@@ -921,7 +969,7 @@ public class TestSuite extends TestBase {
 	@Test(priority = 16)
 	public void ValidateServerRoles() throws Exception {
 		if (stop) {
-			skipTest("Not able to proceed with 'Validating Server Roles' as previous step requested stop");
+			skipTest("Not able to proceed with 'Validating Server Roles' as " + stopReason);
 			return;
 		}
 		if (skipSuite) {

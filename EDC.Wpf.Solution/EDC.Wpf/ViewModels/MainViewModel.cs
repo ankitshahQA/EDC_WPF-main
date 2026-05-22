@@ -145,6 +145,15 @@ public partial class MainViewModel : ObservableObject
     // into the user-facing Results Log.
     private bool _stopRequested;
 
+    // Set when the engine emits its "Deleting created test data started" banner
+    // (TestSuite.DeleteCreatedTestData @AfterSuite). Once we are in the cleanup
+    // phase, the user does not want to see ANY error / exception / Selenium
+    // teardown chatter — those almost always come from leftover state of the
+    // already-failed test (e.g. browser closed by user mid-run). The flag
+    // suppresses live error promotion, the end-of-run failure toast, and any
+    // FAIL/Error entries the parser emits during the cleanup window.
+    private bool _inDeleteDataPhase;
+
     // Snapshot of the user's selected-test names at the moment Run was clicked.
     // Used by the Exited \u2192 OnRunStopped path to synthesize Skipped entries in
     // the Results Log for any selected test the engine never reached (covers
@@ -157,6 +166,12 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(line)) return;
         _stderrBuffer.Enqueue(line);
         while (_stderrBuffer.Count > StderrBufferMax) _stderrBuffer.Dequeue();
+
+        // Once @AfterSuite has started deleting data, suppress all live error
+        // promotion: anything stderr emits at this point is teardown chatter
+        // from state the failed test left behind (closed browser, lost session,
+        // etc.) and is not actionable for the user.
+        if (_inDeleteDataPhase) return;
 
         // Promote obvious errors live, so the user sees them as they happen
         // instead of waiting for the process to exit. Selenium / WebDriver /
@@ -184,8 +199,13 @@ public partial class MainViewModel : ObservableObject
     // Java exception / stack-trace text that should NEVER reach the user-facing
     // Results Log, regardless of which stream produced it. The lines are still
     // kept in the diagnostic stderr ring buffer for crash reports.
+    // Stack frames may be module-prefixed since Java 9 (e.g.
+    //   "at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)")
+    // — include '/' in the character class so those frames are also filtered.
+    // Also drops Selenium teardown lines emitted when the user closes the
+    // browser mid-run ("Session ID: ...", "*** Element info", "Capabilities {...}").
     private static readonly System.Text.RegularExpressions.Regex JavaExceptionDetail =
-        new(@"(?:^|\s)(?:Exception in thread\b|Caused by:\s|Suppressed:\s|\bat\s+[\w$.<>]+\([^)]*\)|\.{3}\s*\d+\s+more\b|(?:[a-z][\w$]*\.){2,}[A-Z][\w$]*(?:Exception|Error|Throwable)\b|\b(?:Build info|Session info|Driver info|System info):\s)",
+        new(@"(?:^|\s)(?:Exception in thread\b|Caused by:\s|Suppressed:\s|\bat\s+[\w$./<>]+\([^)]*\)|\.{3}\s*\d+\s+more\b|(?:[a-z][\w$]*\.){2,}[A-Z][\w$]*(?:Exception|Error|Throwable)\b|\b(?:Build info|Session info|Driver info|System info|Session ID|Element info|Capabilities|Host info):\s|\*\*\*\s*Element info)",
             System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
@@ -230,6 +250,16 @@ public partial class MainViewModel : ObservableObject
         // chatter (UnreachableBrowserException, CDP version mismatch WARNINGs,
         // etc.) — none of which the user needs to see as a popup.
         if (_stopRequested)
+        {
+            _stderrBuffer.Clear();
+            return;
+        }
+
+        // Same suppression once the cleanup phase has begun: the JVM may exit
+        // non-zero because the failing test left the driver in a bad state, but
+        // the user has already seen the real FAIL line in the Results Log and
+        // does not want a second toast saying "Session ID: ..." or similar.
+        if (_inDeleteDataPhase)
         {
             _stderrBuffer.Clear();
             return;
@@ -423,6 +453,7 @@ public partial class MainViewModel : ObservableObject
 
         _store.Save(Config);
         _stopRequested = false;
+        _inDeleteDataPhase = false;
         // Snapshot the selected-test list at run start. The Stop / Exited path
         // uses it to synthesize Skipped entries in the Results Log for any
         // selected test the engine never reached (so the user sees the full set
@@ -681,6 +712,17 @@ public partial class MainViewModel : ObservableObject
         if (r.ResultUpdate is not null)
             ResultsLog.RecordOutcome(r.ResultUpdate.Outcome);
 
+        // Detect the @AfterSuite cleanup banner emitted by
+        // TestSuite.DeleteCreatedTestData() via setTextGreen("Deleting created
+        // test data started"). From this point onward we suppress any FAIL /
+        // ERROR / WARN noise — the only errors during cleanup come from
+        // already-failed tests' leftover state and are not actionable.
+        if (!_inDeleteDataPhase &&
+            raw.IndexOf("Deleting created test data", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            _inDeleteDataPhase = true;
+        }
+
         // The Results Log pane mirrors the Extent report: it only shows the
         // curated status events (PASS / FAIL / SKIP / WARN / ERROR) and the
         // "<name> Started" test-case banners. Everything else (per-step
@@ -691,6 +733,15 @@ public partial class MainViewModel : ObservableObject
                                             or LogLevel.Skip
                                             or LogLevel.Warn
                                             or LogLevel.Error;
+
+        // While cleanup is running, drop FAIL / ERROR / WARN entirely. Allow
+        // PASS / SKIP through (cleanup steps may legitimately report success).
+        if (_inDeleteDataPhase &&
+            r.Entry.Level is LogLevel.Fail or LogLevel.Error or LogLevel.Warn)
+        {
+            return;
+        }
+
         if (!isStatusEvent && !IsTestCaseBanner(raw)) return;
 
         ResultsLog.Append(r.Entry);
