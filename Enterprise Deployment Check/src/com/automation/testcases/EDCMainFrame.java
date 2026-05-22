@@ -1122,6 +1122,20 @@ public class EDCMainFrame {
 						if (line.trim().equalsIgnoreCase("STOP")) {
 							System.out.println("Received STOP from parent \u2014 remaining tests will be skipped.");
 							stop = true;
+							// Force-quit the WebDriver so any in-flight Selenium call
+							// (find element, wait, click, …) errors out immediately
+							// with a NoSuchSessionException instead of blocking until
+							// the GracefulStopTimeout expires. Without this the
+							// in-flight @Test can pin TestNG long enough that the
+							// parent kills the JVM before @AfterSuite runs the
+							// DeleteCreatedTestData cleanup. Best-effort only —
+							// swallow every error so the watcher thread survives.
+							try {
+								org.openqa.selenium.remote.RemoteWebDriver d = driver;
+								if (d != null) {
+									try { d.quit(); } catch (Throwable ignored) {}
+								}
+							} catch (Throwable ignored) {}
 						}
 					}
 				} catch (Throwable ignored) {}

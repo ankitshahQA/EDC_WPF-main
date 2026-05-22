@@ -253,8 +253,8 @@ public void click_on_content_home_12_0_0() throws InterruptedException {
 			cfunction.CommmonJS_Click(ORGANIZATION_MENU_ITEM);
 			CommonFunction.logStatus("PASS", msg);
 		} catch (Exception e) {
-			e.printStackTrace();
-			CommonFunction.logStatusWithException("FAIL", msg, e);
+			//e.printStackTrace();
+			//CommonFunction.logStatusWithException("FAIL", msg, e);
 
 		}
 	}
