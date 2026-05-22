@@ -127,7 +127,7 @@ public class LoginPage extends TestBase {
 			
 		} catch (Exception e) {
 			e.printStackTrace();
-			CommonFunction.logStatusWithException("FAIL", msg, e);
+			CommonFunction.logStatusWithException("FAIL", "User is not able to Login due to Wrong credentials", e);
 		}
 		
 		msg = "Verify user is able to sign in";
@@ -144,7 +144,7 @@ public class LoginPage extends TestBase {
 				}
 		}} catch (Exception e) {
 			e.printStackTrace();
-			CommonFunction.logStatusWithException("FAIL", msg, e);
+			CommonFunction.logStatusWithException("FAIL", "User is not able to Login due to Wrong credentials", e);
 			logindone = false;
 		}
 		

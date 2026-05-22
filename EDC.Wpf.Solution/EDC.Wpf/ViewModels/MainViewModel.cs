@@ -420,9 +420,17 @@ public partial class MainViewModel : ObservableObject
             for (int i = 0; i < EdcConfig.MaxServers; i++)
             {
                 var s = Config.Servers[i];
-                if (!string.IsNullOrWhiteSpace(s.Url) &&
-                    !string.IsNullOrWhiteSpace(s.AdminUsername) &&
-                    !string.IsNullOrWhiteSpace(s.AdminPassword))
+                if (string.IsNullOrWhiteSpace(s.Url)) continue;
+                // Federated server slots reuse the Portal admin credentials at
+                // runtime, so only the URL is mandatory for them. Non-federated
+                // (standalone) slots still need explicit Admin Username +
+                // Password because the Java engine logs into Server Admin
+                // directly with those credentials. This mirrors the tooltip
+                // text on the Admin Password field in InputParametersPane.xaml
+                // ("only required for non-federated servers").
+                if (s.Federated ||
+                    (!string.IsNullOrWhiteSpace(s.AdminUsername) &&
+                     !string.IsNullOrWhiteSpace(s.AdminPassword)))
                 {
                     anyServerComplete = true;
                     break;
@@ -431,7 +439,7 @@ public partial class MainViewModel : ObservableObject
             if (!anyServerComplete)
             {
                 Toasts.Show("Missing server credentials",
-                    "At least one server slot (URL + Admin Username + Admin Password) is required when 'Login to Server Admin', 'Login to Server Manager', 'Validate Server Roles', or 'Validate Data Stores' is selected.",
+                    "At least one server slot is required when 'Login to Server Admin', 'Login to Server Manager', 'Validate Server Roles', or 'Validate Data Stores' is selected. Federated slots only need the URL; non-federated slots also need Admin Username and Password.",
                     ToastSeverity.Warning, autoDismissMs: 10000);
                 return;
             }
